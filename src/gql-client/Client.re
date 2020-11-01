@@ -13,36 +13,6 @@ let httpLink =
     (),
   );
 
-let wsLink =
-  ApolloClient.Link.WebSocketLink.(
-    make(
-      ~uri="ws://" ++ graphqlEndpoint,
-      ~options=
-        ClientOptions.make(
-          ~connectionParams=
-            ConnectionParams(Obj.magic({"headers": headers})),
-          ~reconnect=true,
-          (),
-        ),
-      (),
-    )
-  );
-
-let terminatingLink =
-  ApolloClient.Link.split(
-    ~test=
-      ({query}) => {
-        let definition = ApolloClient.Utilities.getOperationDefinition(query);
-        switch (definition) {
-        | Some({kind, operation}) =>
-          kind === "OperationDefinition" && operation === "subscription"
-        | None => false
-        };
-      },
-    ~whenTrue=wsLink,
-    ~whenFalse=httpLink,
-  );
-
 let instance =
   ApolloClient.(
     make(
@@ -70,7 +40,7 @@ let instance =
             ),
           (),
         ),
-      ~link=terminatingLink,
+      ~link=httpLink,
       (),
     )
   );
