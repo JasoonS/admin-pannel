@@ -15,7 +15,7 @@
     "template-tag-import": "gql",
     "template-tag-location": "@apollo/client"
   },
-  "ppx-flags": ["@reasonml-community/graphql-ppx/ppx", "bs-log/ppx"],
+  "ppx-flags": ["@reasonml-community/graphql-ppx/ppx", "bs-log/ppx", "decco/ppx"],
   "reason": {
     "react-jsx": 3
   },
@@ -36,6 +36,7 @@
     "bs-log",
     "bs-css",
     "bs-css-emotion",
-    "re-classnames"
+    "re-classnames",
+    "decco"
   ]
 }

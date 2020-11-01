@@ -1,4 +1,5 @@
-let graphqlEndpoint = "localhost:8080/v1/graphql";
+let graphqlEndpoint = "api.wildcards.world/v1/graphql";
+// let graphqlEndpoint = "https://api.wildcards.world/v1/graphql";
 
 let headers = {
   "eth-signature": "0xc46e2d4c2182ef506c9be3bec642878d8226bf69446bed045da63c6e415a2e0425d222e7e9db5dd42b32a337a9ca6055f7ca43c14ac0541c745ccd26a2cb44901b",
@@ -7,7 +8,7 @@ let headers = {
 
 let httpLink =
   ApolloClient.Link.HttpLink.make(
-    ~uri=_ => "http://" ++ graphqlEndpoint,
+    ~uri=_ => "https://" ++ graphqlEndpoint,
     ~headers=Obj.magic(headers),
     (),
   );
