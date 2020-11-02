@@ -4,17 +4,7 @@
 
 open Belt;
 
-[@decco.decode]
-type animalDescription = array(string);
-
 let (||||) = (optional, default) => Option.getWithDefault(optional, default);
-
-module StringArray = {
-  type t = array(string);
-  let parse = json =>
-    json->animalDescription_decode->Belt.Result.getWithDefault([||]);
-  let serialize = array => array->Obj.magic->Js.Json.string;
-};
 
 module AllOrganisations = [%graphql
   {|
@@ -23,7 +13,7 @@ query AllOrgs {
     announcement_blog
     country
     cover_image
-    description  @ppxCustom(module: "StringArray")
+    description @ppxCustom(module: "GqlConverters.StringArray")
     id
     logo
     logo_badge
