@@ -1,6 +1,6 @@
 [@react.component]
 let make = () => {
   <ApolloClient.React.ApolloProvider client=Client.instance>
-    <OrgOverview />
+    <AdminTopLevel />
   </ApolloClient.React.ApolloProvider>;
 };

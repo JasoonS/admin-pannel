@@ -37,6 +37,8 @@
     "bs-css",
     "bs-css-emotion",
     "re-classnames",
-    "decco"
+    "decco",
+    "bs-css",
+    "bs-css-emotion"
   ]
 }
