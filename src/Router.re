@@ -10,17 +10,12 @@ module Route = {
     | Cards;
 
   let fromUrl = (url: ReasonReactRouter.url) => {
-    // React.useMemo1(
-    // () => {
-    //   },
-    //   [|url.hash|],
-    // );
     switch (url.path) {
-    | ["cards"]
-    | ["cards", ""] => Cards
     | ["orgs"]
-    | ["orgs", ""]
-    | _ => Orgs
+    | ["orgs", ""] => Orgs
+    | ["cards"]
+    | ["cards", ""]
+    | _ => Cards
     };
   };
 

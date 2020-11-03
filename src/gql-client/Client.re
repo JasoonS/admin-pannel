@@ -1,9 +1,15 @@
+// let graphqlEndpoint = "goerli.api.wildcards.world/v1/graphql";
 let graphqlEndpoint = "api.wildcards.world/v1/graphql";
 // let graphqlEndpoint = "https://api.wildcards.world/v1/graphql";
 
 let headers = {
-  "eth-signature": "0xc46e2d4c2182ef506c9be3bec642878d8226bf69446bed045da63c6e415a2e0425d222e7e9db5dd42b32a337a9ca6055f7ca43c14ac0541c745ccd26a2cb44901b",
-  "eth-address": "0xCB6F1a8fdcF0D8e16109ef629E85fB7a7b19876b",
+  let optAdminSecret =
+    Dom.Storage.(localStorage |> getItem("hasura-admin-secret"));
+  switch (optAdminSecret) {
+  | Some(adminSecret) => {"x-hasura-admin-secret": adminSecret}
+  // | None => {"no-auth": "nada"}->Obj.magic
+  | None => {"x-hasura-admin-secret": "n[I>OWsXsUw9hG8^pGBU"}
+  };
 };
 
 let httpLink =
