@@ -16,34 +16,34 @@ module StringArray = {
   let serialize = array => array->Obj.magic->Js.Json.string;
 };
 
-module AllOrganisations = [%graphql
+module AllWildcardsData = [%graphql
   {|
-query AllCards {
-    wildcardData {
-    commonName
-    artistOfWildcard {
-      name
-      id
-      eth_address
-      website
+    query AllCards {
+      wildcardData {
+        commonName
+        artistOfWildcard {
+          name
+          id
+          eth_address
+          website
+        }
+        nftId: id
+        description @ppxCustom(module: "GqlConverters.StringArray")
+        image
+        key
+        name
+        species
+        real_wc_photos {
+          photographer
+          image
+        }
+        organization {
+          id
+          name
+        }
+      }
     }
-    nftId: id
-    description @ppxCustom(module: "GqlConverters.StringArray")
-    image
-    key
-    name
-    species
-    real_wc_photos {
-      photographer
-      image
-    }
-    organization {
-      id
-      name
-    }
-  }
-}
-|}
+  |}
 ];
 
 // Add Real Wildcard Image:
@@ -54,6 +54,16 @@ module AddRealWildcardImage = [%graphql
       affected_rows
     }
   }
+  |}
+];
+
+module AddWildcardAnimation = [%graphql
+  {|
+    mutation ($key: Int!, $image: String!){
+      update_wildcardData_by_pk(pk_columns: {key: $key}, _set: {image: $image}) {
+        image
+      }
+    }
   |}
 ];
 
@@ -84,8 +94,9 @@ module ReactModal = {
 };
 module CDNImageLink = {
   [@react.component]
-  let make = (~cdnPath) => {
+  let make = (~cdnPath, ~updateAnimation) => {
     let (showModal, setShowModal) = React.useState(_ => false);
+
     <div>
       <ReactModal
         isOpen=showModal
@@ -93,9 +104,16 @@ module CDNImageLink = {
         style={customStyles->Obj.magic}
         onAfterOpen={() => ()}
         onRequestClose={() => setShowModal(_ => false)}>
-        <img src={"https://dd2wadt5nc0o7.cloudfront.net" ++ cdnPath} />
+        updateAnimation
+        {cdnPath->Option.mapWithDefault(
+           <p> "you need to upload an image still"->React.string </p>,
+           imagePath =>
+           <img src={"https://dd2wadt5nc0o7.cloudfront.net" ++ imagePath} />
+         )}
       </ReactModal>
-      <div onClick={_ => setShowModal(_ => true)}> cdnPath->React.string </div>
+      <div onClick={_ => setShowModal(_ => true)}>
+        {cdnPath->Option.getWithDefault("NO IMAGE")->React.string}
+      </div>
     </div>;
   };
 };
@@ -273,7 +291,7 @@ module AddRealImages = {
                  onClick={_ => {
                    mutate(
                      ~refetchQueries=[|
-                       AllOrganisations.refetchQueryDescription(),
+                       AllWildcardsData.refetchQueryDescription(),
                      |],
                      AddRealWildcardImage.makeVariables(
                        ~inp=[|
@@ -343,13 +361,151 @@ module AddRealImages = {
     </div>;
   };
 };
+module AddAnimation = {
+  [@react.component]
+  let make = (~imageKey) => {
+    let (mutate, result) = AddWildcardAnimation.use();
+
+    let (imageStatus, setImageStatus) = React.useState(_ => NotSet);
+    let (artist, setArtist) = React.useState(_ => None);
+
+    let (link, setLink) = React.useState(() => "");
+
+    let onChange = (e: ReactEvent.Form.t): unit => {
+      let value = e->ReactEvent.Form.target##value;
+      setLink(value);
+    };
+    let onChangeArtist = (e: ReactEvent.Form.t): unit => {
+      let value = e->ReactEvent.Form.target##value;
+      setArtist(_ => Some(value));
+    };
+
+    let setImageForm =
+      <form
+        onSubmit={event => {
+          ReactEvent.Form.preventDefault(event);
+          setImageStatus(_ => Set(link));
+        }}>
+        <label>
+          {React.string("Image link (remember, it starts with \"/\"): ")}
+        </label>
+        <br />
+        <input type_="text" name="auth_key" onChange />
+        <br />
+        <>
+          <br />
+          <label>
+            {React.string("TODO: select the artist of this avatar")}
+          </label>
+          <input
+            type_="text"
+            name="auth_key"
+            disabled=true
+            onChange=onChangeArtist
+          />
+        </>
+        <br />
+        <button> "Submit (test animation is correct)"->React.string </button>
+      </form>;
+
+    <div>
+      <h3> "Add new wildcard animation:"->React.string </h3>
+      <AuthComponent>
+        <>
+          {switch (imageStatus) {
+           | NotSet => setImageForm
+           | Set(imageLink) =>
+             <>
+               <a
+                 href={"https://dd2wadt5nc0o7.cloudfront.net" ++ imageLink}
+                 target="_blank">
+                 "Link to image (use it to debug issues...)"->React.string
+               </a>
+               <img
+                 src={"https://dd2wadt5nc0o7.cloudfront.net" ++ imageLink}
+                 onLoad={_ => setImageStatus(_ => Loaded(imageLink))}
+                 onError={_ => setImageStatus(_ => ErrorLoading(imageLink))}
+               />
+             </>
+           | Loaded(imageLink) =>
+             <>
+               <button
+                 onClick={_ => {
+                   mutate(
+                     ~refetchQueries=[|
+                       AllWildcardsData.refetchQueryDescription(),
+                     |],
+                     AddWildcardAnimation.makeVariables(
+                       ~image=imageLink,
+                       ~key=imageKey,
+                       (),
+                     ),
+                   )
+                   ->ignore;
+                   setImageStatus(_ => Done);
+                 }}>
+                 "Set the image"->React.string
+               </button>
+               <img
+                 src={"https://dd2wadt5nc0o7.cloudfront.net" ++ imageLink}
+                 onLoad={_ => setImageStatus(_ => Loaded(imageLink))}
+                 onError={_ => setImageStatus(_ => ErrorLoading(imageLink))}
+               />
+             </>
+           | ErrorLoading(imageLink) =>
+             <>
+               <p>
+                 "There was an error loading that image, please check the link is correct:"
+                 ->React.string
+               </p>
+               <a
+                 href={"https://dd2wadt5nc0o7.cloudfront.net" ++ imageLink}
+                 target="_blank">
+                 "Link to image (use it to debug issues...)"->React.string
+               </a>
+               <br />
+               <h3> "try again"->React.string </h3>
+               setImageForm
+             </>
+           | Done => React.null
+           }}
+        </>
+        {switch (result) {
+         | {called: false} => React.null
+         | {loading: true} => "Loading..."->React.string
+         | {data: Some(_result), error: None} =>
+           <>
+             <p> {React.string("New wildcard animation added!")} </p>
+             <br />
+             {switch (imageStatus) {
+              | Done =>
+                <p>
+                  "the image should be updated (you may need to reload your browser - will fix in future versions)"
+                  ->React.string
+                </p>
+              | _ => React.null
+              }}
+           </>
+         | {error} =>
+           <>
+             "Error loading data"->React.string
+             {switch (error) {
+              | Some(error) => React.string(": " ++ error.message)
+              | None => React.null
+              }}
+           </>
+         }}
+      </AuthComponent>
+    </div>;
+  };
+};
 module RealImages = {
   [@react.component]
   let make =
       (
         ~imageArray:
            array(
-             AllOrganisations.AllOrganisations_inner.t_wildcardData_real_wc_photos,
+             AllWildcardsData.AllWildcardsData_inner.t_wildcardData_real_wc_photos,
            ),
         ~imageKey,
       ) => {
@@ -443,7 +599,7 @@ module Onboarding = {
 };
 [@react.component]
 let make = () => {
-  let allOrgsQuery = AllOrganisations.use();
+  let allOrgsQuery = AllWildcardsData.use();
 
   let onClick = (id, _event) => {
     Js.log("clicked the id: " ++ id);
@@ -533,10 +689,10 @@ let make = () => {
                   </td>
                   <td> <Description description /> </td>
                   <td>
-                    {image->Option.mapWithDefault(
-                       "NO IMAGE"->React.string, coverImage =>
-                       <CDNImageLink cdnPath=coverImage />
-                     )}
+                    <CDNImageLink
+                      cdnPath=image
+                      updateAnimation={<AddAnimation imageKey=key />}
+                    />
                   </td>
                   <td>
                     {artistOfWildcard->Option.mapWithDefault(
