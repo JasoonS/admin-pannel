@@ -2,6 +2,17 @@
 [@ocaml.warning "-44"]
 open Css;
 
+[@ocaml.warning "-44"]
+open Css;
+
+global(
+  "a",
+  [color(hex("303030")), cursor(`pointer), textDecoration(none)],
+);
+global("a:hover", [textDecoration(underline)]);
+// global("a:active", [color(hex("303030"))]);
+// global("a:visited", [color(hex("303030"))]);
+
 let buttonStyles =
   style([
     important(color(white)),

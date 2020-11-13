@@ -67,130 +67,6 @@ module AddWildcardAnimation = [%graphql
   |}
 ];
 
-let customStyles = {
-  "content": {
-    "top": "20%",
-    "left": "20%",
-    "right": "20%",
-    "bottom": "20%",
-  },
-  // "marginRight": "-20%",
-  // "transform": "translate(-20%, -20%)",
-};
-type reactModalStyles;
-module ReactModal = {
-  [@bs.module "react-modal"] [@react.component]
-  external make:
-    (
-      ~isOpen: bool,
-      ~contentLabel: string,
-      ~onAfterOpen: unit => unit,
-      ~onRequestClose: unit => unit,
-      ~style: reactModalStyles,
-      ~children: React.element
-    ) =>
-    React.element =
-    "default";
-};
-module CDNImageLink = {
-  [@react.component]
-  let make = (~cdnPath, ~updateAnimation) => {
-    let (showModal, setShowModal) = React.useState(_ => false);
-
-    <div>
-      <ReactModal
-        isOpen=showModal
-        contentLabel="hello world"
-        style={customStyles->Obj.magic}
-        onAfterOpen={() => ()}
-        onRequestClose={() => setShowModal(_ => false)}>
-        updateAnimation
-        {cdnPath->Option.mapWithDefault(
-           <p> "you need to upload an image still"->React.string </p>,
-           imagePath =>
-           <img src={"https://dd2wadt5nc0o7.cloudfront.net" ++ imagePath} />
-         )}
-      </ReactModal>
-      <div onClick={_ => setShowModal(_ => true)}>
-        {cdnPath->Option.getWithDefault("NO IMAGE")->React.string}
-      </div>
-    </div>;
-  };
-};
-module Description = {
-  [@react.component]
-  let make = (~description) => {
-    let (showModal, setShowModal) = React.useState(_ => false);
-    <div>
-      <ReactModal
-        isOpen=showModal
-        contentLabel="hello world"
-        style={customStyles->Obj.magic}
-        onAfterOpen={() => ()}
-        onRequestClose={() => setShowModal(_ => false)}>
-        {description
-         ->Array.map(paragraph => <p> paragraph->React.string </p>)
-         ->React.array}
-      </ReactModal>
-      <div onClick={_ => setShowModal(_ => true)}>
-        (
-          switch (description->Array.length) {
-          | 0 => "NO DESCRIPTION"
-          | x => x->string_of_int ++ " paragraph description"
-          }
-        )
-        ->React.string
-      </div>
-    </div>;
-  };
-};
-
-module AuthComponent = {
-  [@react.component]
-  let make = (~children) => {
-    let (authSet, setAuthSet) =
-      React.useState(_ =>
-        Dom.Storage.(localStorage |> getItem("hasura-admin-secret"))
-        ->Option.isSome
-      );
-    let (authHeader, setAuthHeader) = React.useState(() => "");
-
-    let onChange = (e: ReactEvent.Form.t): unit => {
-      let value = e->ReactEvent.Form.target##value;
-      setAuthHeader(value);
-    };
-
-    authSet
-      ? <>
-          <button onClick={_ => setAuthSet(_ => false)}>
-            "Edit your auth key"->React.string
-          </button>
-          <br />
-          children
-        </>
-      : <form
-          onSubmit={event => {
-            Dom.Storage2.(
-              localStorage->setItem("hasura-admin-secret", authHeader)
-            );
-            ReactEvent.Form.preventDefault(event);
-
-            setAuthSet(_ => true);
-          }}>
-          <label> {React.string("Auth Key: ")} </label>
-          <input type_="text" name="auth_key" onChange />
-          <button type_="submit"> {React.string("submit")} </button>
-          <br />
-          <br />
-          <br />
-          <p>
-            "NOTE: you may need to reload the webpage after doing this to activate the key"
-            ->React.string
-          </p>
-        </form>;
-  };
-};
-
 type imageLoadState =
   | Set(string)
   | Loaded(string)
@@ -499,6 +375,7 @@ module AddAnimation = {
     </div>;
   };
 };
+
 module RealImages = {
   [@react.component]
   let make =
@@ -514,7 +391,7 @@ module RealImages = {
       <ReactModal
         isOpen=showModal
         contentLabel="hello world"
-        style={customStyles->Obj.magic}
+        style={ReactModal.customStyles->Obj.magic}
         onAfterOpen={() => ()}
         onRequestClose={() => setShowModal(_ => false)}>
         <div>
@@ -560,7 +437,7 @@ module YoutubeModal = {
            <ReactModal
              isOpen=showModal
              contentLabel="hello world"
-             style={customStyles->Obj.magic}
+             style={ReactModal.customStyles->Obj.magic}
              onAfterOpen={() => ()}
              onRequestClose={() => setShowModal(_ => false)}>
              <Youtube videoCode />
@@ -572,6 +449,28 @@ module YoutubeModal = {
        | None => "NO VIDEO"->React.string
        }}
     </div>;
+  };
+};
+module AddCardsModal = {
+  [@react.component]
+  let make = () => {
+    let (showModal, setShowModal) = React.useState(_ => false);
+
+    <>
+      <ReactModal
+        isOpen=showModal
+        contentLabel="hello world"
+        // style={ReactModal.customStyles->Obj.magic}
+        onAfterOpen={() => ()}
+        onRequestClose={() => setShowModal(_ => false)}>
+        <AddWildcards />
+      </ReactModal>
+      <button
+        className=Css.(style([color(white)]))
+        onClick={_ => setShowModal(_ => true)}>
+        "Add new wildcards"->React.string
+      </button>
+    </>;
   };
 };
 
@@ -600,13 +499,45 @@ module Onboarding = {
 [@react.component]
 let make = () => {
   let allOrgsQuery = AllWildcardsData.use();
+  let (showFilters, setShowFilters) = React.useState(_ => false);
+  let (showActions, setShowActions) = React.useState(_ => false);
 
   let onClick = (id, _event) => {
     Js.log("clicked the id: " ++ id);
   };
 
   <>
-    <h2> "TODO: add filters."->React.string </h2>
+    <br />
+    {showFilters
+       ? <>
+           <a onClick={_ => {setShowFilters(_ => false)}}>
+             "Close Filters"->React.string
+           </a>
+           <h2>
+             "TODO: add filters. - be patient, Jason will do it one day"
+             ->React.string
+           </h2>
+         </>
+       : <>
+           <a onClick={_ => {setShowFilters(_ => true)}}>
+             "Show Filters"->React.string
+           </a>
+         </>}
+    <br />
+    {showActions
+       ? <>
+           <a onClick={_ => {setShowActions(_ => false)}}>
+             "Close Actions"->React.string
+           </a>
+           <br />
+           <AddCardsModal />
+         </>
+       : <>
+           <a onClick={_ => {setShowActions(_ => true)}}>
+             "Show Actions"->React.string
+           </a>
+         </>}
+    <br />
     {switch (allOrgsQuery) {
      | {loading: true} => "Loading..."->React.string
      | {error: Some(error)} =>
