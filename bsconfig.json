@@ -39,6 +39,7 @@
     "re-classnames",
     "decco",
     "bs-css",
-    "bs-css-emotion"
+    "bs-css-emotion",
+    "re-debouncer"
   ]
 }

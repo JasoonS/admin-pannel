@@ -10877,6 +10877,11 @@ re-classnames@^5.0.1:
   resolved "https://registry.yarnpkg.com/re-classnames/-/re-classnames-5.0.1.tgz#f107e5b328b79ad423c33e991d9dd11d089400b3"
   integrity sha512-tTdlHyRnS22+59xeOmj3/eOkW9gtP4Gw1pcIscl9csPvJEZTqnHEfIoGDiCPVKi3yreAOWtPFCPuWk49SlffAA==
 
+re-debouncer@^2.1.0:
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/re-debouncer/-/re-debouncer-2.1.0.tgz#2eaf7994ba41590f4f80d4a363ae8905156b7dc1"
+  integrity sha512-Iy9BecWF9X4V6zXfL3ROZpKGkCnpzYdjG/j6NIBxQn7gEwO2DzED5BsbfRUiPeqr7C0tAD0HPHF6tYIcQFEnyA==
+
 react-app-polyfill@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/react-app-polyfill/-/react-app-polyfill-2.0.0.tgz#a0bea50f078b8a082970a9d853dc34b6dcc6a3cf"

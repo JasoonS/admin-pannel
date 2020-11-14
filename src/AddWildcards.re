@@ -15,11 +15,14 @@ module AddWildcards = [%graphql
 
 type index = int;
 type name = string;
+type paragraph = string;
+
 type inputActions =
   | AddRow
   | SetName(index, name)
   | SetSpecies(index, name)
-  | SetCommonName(index, name);
+  | SetCommonName(index, name)
+  | SetDescription(index, array(paragraph));
 
 type defaultState = {
   data: array(AddWildcards.t_variables_wildcardData_insert_input),
@@ -66,6 +69,64 @@ type topLevelWildcardFields =
   | RealWcPhotos
   | Species;
 
+[@bs.send] external join: (array(string), string) => string = "join";
+
+let stringToParagraphs =
+  Debouncer.make(((input: string, updateFunction)) => {
+    let lines = input->Js.String2.split("\n");
+    let trimmedLines = lines->Array.map(Js.String.trim);
+    let paragraphs = trimmedLines->Array.keep(paragraph => paragraph != "");
+    updateFunction(paragraphs);
+  });
+
+module SetParagarphArrayField = {
+  [@react.component]
+  let make = (~lable, ~currentValue: array(string), ~setValue, ~close) => {
+    let (textareaValue, setTextareaValue) =
+      React.useState(_ => currentValue->join("\n\n"));
+    Js.log(textareaValue);
+    React.useEffect1(
+      () => {
+        stringToParagraphs((textareaValue, setValue));
+        None;
+      },
+      [|textareaValue|],
+    );
+
+    <>
+      <td colSpan=4>
+        <label> lable->React.string </label>
+        <br />
+        <textarea
+          value=textareaValue
+          className=Css.(style([width(`percent(100.)), height(em(25.))]))
+          onChange={e => {
+            let value = e->ReactEvent.Form.target##value;
+
+            setTextareaValue(value);
+          }}
+        />
+        <br />
+        <br />
+        <button className=Css.(style([color(white)])) onClick=close>
+          "Save and continue"->React.string
+        </button>
+      </td>
+      <td colSpan=4>
+        {currentValue
+         ->Array.mapWithIndex((index, paragraph) =>
+             <>
+               <small className=Css.(style([color(grey)]))>
+                 {("Paragraph #" ++ index->string_of_int)->React.string}
+               </small>
+               <p> paragraph->React.string </p>
+             </>
+           )
+         ->React.array}
+      </td>
+    </>;
+  };
+};
 module SetStringField = {
   [@react.component]
   let make = (~lable, ~currentValue, ~setValue, ~close) =>
@@ -120,9 +181,16 @@ module AddCardRow = {
           {species->Option.getWithDefault("")->React.string}
         </td>
         <td onClick={onClick(Description)}>
-          <Description
-            description={description->Obj.magic->Option.getWithDefault([||])}
-          />
+          <div>
+            <Description
+              description={description->Obj.magic->Option.getWithDefault([||])}
+            />
+            <h1
+              onClick={onClick(Description)}
+              className=Css.(style([display(`inline)]))>
+              {js| 🗒️✍ |js}->React.string
+            </h1>
+          </div>
         </td>
         <td onClick={onClick(Image)}>
           {image->Option.getWithDefault("")->React.string}
@@ -168,39 +236,54 @@ module AddCardRow = {
            )}
         </td>
       </tr>
-      {switch (editing) {
-       | None => React.null
-       | Some(thingToEdit) =>
-         switch (thingToEdit) {
-         | Artist =>
-           <> "Adding artists isn't implemented yet"->React.string </>
-         | Name =>
-           <SetStringField
-             lable="Set the name of the wildcard"
-             currentValue={name->Option.getWithDefault("")}
-             setValue={newValue => reducer(SetName(index, newValue))}
-             close={_ => setEditing(_ => None)}
-           />
-         | CommonName =>
-           <SetStringField
-             lable="Set the common animal name of the wildcard"
-             currentValue={commonName->Option.getWithDefault("")}
-             setValue={newValue => reducer(SetCommonName(index, newValue))}
-             close={_ => setEditing(_ => None)}
-           />
-         | Species =>
-           <SetStringField
-             lable="Set the species of the wildcard"
-             currentValue={species->Option.getWithDefault("")}
-             setValue={newValue => reducer(SetSpecies(index, newValue))}
-             close={_ => setEditing(_ => None)}
-           />
-         | Description
-         | Image
-         | Organization
-         | RealWcPhotos => React.null
-         }
-       }}
+      <tr>
+        {switch (editing) {
+         | None => React.null
+         | Some(thingToEdit) =>
+           switch (thingToEdit) {
+           | Artist =>
+             <> "Adding artists isn't implemented yet"->React.string </>
+           | Name =>
+             <SetStringField
+               lable="Set the name of the wildcard"
+               currentValue={name->Option.getWithDefault("")}
+               setValue={newValue => reducer(SetName(index, newValue))}
+               close={_ => setEditing(_ => None)}
+             />
+           | CommonName =>
+             <SetStringField
+               lable="Set the common animal name of the wildcard"
+               currentValue={commonName->Option.getWithDefault("")}
+               setValue={newValue => reducer(SetCommonName(index, newValue))}
+               close={_ => setEditing(_ => None)}
+             />
+           | Species =>
+             <SetStringField
+               lable="Set the species of the wildcard"
+               currentValue={species->Option.getWithDefault("")}
+               setValue={newValue => reducer(SetSpecies(index, newValue))}
+               close={_ => setEditing(_ => None)}
+             />
+           | Description =>
+             <SetParagarphArrayField
+               lable="Set the species of the wildcard"
+               currentValue={
+                 description->Option.mapWithDefault(
+                   [||],
+                   GqlConverters.StringArray.parse,
+                 )
+               }
+               setValue={newValue =>
+                 reducer(SetDescription(index, newValue))
+               }
+               close={_ => setEditing(_ => None)}
+             />
+           | Image
+           | Organization
+           | RealWcPhotos => React.null
+           }
+         }}
+      </tr>
     </>;
   };
 };
@@ -242,6 +325,20 @@ let make = () => {
               {
                 ...state.data[index]->Option.getWithDefault(emptyNewCard),
                 species: Some(name),
+              },
+            )
+          ->ignore;
+          {...state, data: state.data};
+        | SetDescription(index, description) =>
+          state.data
+          ->Array.set(
+              index,
+              {
+                ...state.data[index]->Option.getWithDefault(emptyNewCard),
+                description:
+                  description->Array.length > 0
+                    ? Some(description->GqlConverters.StringArray.serialize)
+                    : None,
               },
             )
           ->ignore;
