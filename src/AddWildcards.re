@@ -2,19 +2,29 @@ open Belt;
 
 module AddWildcards = [%graphql
   {|
-  mutation ($wildcardsToInsert: [wildcardData_insert_input!]!) {
-  insert_wildcardData(objects: $wildcardsToInsert) {
-    returning {
-      key
-      name
+    mutation ($wildcardsToInsert: [wildcardData_insert_input!]!) {
+      insert_wildcardData(objects: $wildcardsToInsert) {
+        returning {
+          key
+          name
+        }
+      }
     }
-  }
-}
+  |}
+];
+module AllOrgIds = [%graphql
+  {|
+    query MyQuery {
+      organisations {
+        id
+      }
+    }
   |}
 ];
 
 type index = int;
 type name = string;
+type orgId = string;
 type paragraph = string;
 
 type inputActions =
@@ -22,6 +32,7 @@ type inputActions =
   | SetName(index, name)
   | SetSpecies(index, name)
   | SetCommonName(index, name)
+  | SetOrganisation(index, orgId)
   | SetDescription(index, array(paragraph));
 
 type defaultState = {
@@ -73,6 +84,12 @@ type topLevelWildcardFields =
 
 let stringToParagraphs =
   Debouncer.make(((input: string, updateFunction)) => {
+    // TODO: prevent adding strings with special characters
+    let includesSpecialInvertedComasOrAppostrophes =
+      input->Js.String2.includes("“")
+      || input->Js.String2.includes("”")
+      || input->Js.String2.includes("‘")
+      || input->Js.String2.includes("’");
     let lines = input->Js.String2.split("\n");
     let trimmedLines = lines->Array.map(Js.String.trim);
     let paragraphs = trimmedLines->Array.keep(paragraph => paragraph != "");
@@ -148,6 +165,52 @@ module SetStringField = {
       </button>
     </>;
 };
+module SelectOrganisation = {
+  [@react.component]
+  let make = (~lable, ~currentValue, ~setValue, ~close) => {
+    let allOrgsQuery = AllOrgIds.use();
+
+    <>
+      {switch (allOrgsQuery) {
+       | {loading: true} =>
+         "Loading list of all organisations..."->React.string
+       | {error: Some(error)} =>
+         <AuthComponent>
+           {(
+              "Error loading data - message: "
+              ++ error.message
+              ++ "\n\n(copy paste the message to Jason on slack, but try reload the page first)"
+            )
+            ->React.string}
+         </AuthComponent>
+       | {data: Some({organisations})} =>
+         <>
+           <label> lable->React.string </label>
+           <br />
+           <br />
+           <select
+             value=currentValue
+             onChange={e => {
+               let value = e->ReactEvent.Form.target##value;
+
+               setValue(value);
+             }}>
+             {organisations
+              ->Array.map(({id}) =>
+                  <option value=id> id->React.string </option>
+                )
+              ->React.array}
+           </select>
+           <br />
+           <button className=Css.(style([color(white)])) onClick=close>
+             "Finish"->React.string
+           </button>
+         </>
+       | _ => React.null
+       }}
+    </>;
+  };
+};
 module AddCardRow = {
   [@react.component]
   let make = (~rowData: wildcardInput, ~index, ~reducer) => {
@@ -222,17 +285,13 @@ module AddCardRow = {
         //    )
         //  ->React.array}
         <td onClick={onClick(Organization)}>
-          {organization->Option.mapWithDefault(
-             React.null, ({data: {name, id}}) =>
-             <a
-               href={
-                 "https://wildcards.world/#org/"
-                 ++ id->Option.getWithDefault("")
-               }>
-               <small>
-                 {name->Option.getWithDefault("")->React.string}
-               </small>
-             </a>
+          {organisationId->Option.mapWithDefault(React.null, orgId =>
+             <>
+               <a href={"https://wildcards.world/#org/" ++ orgId}>
+                 <small> orgId->React.string </small>
+               </a>
+               {js| 🗒️✍ |js}->React.string
+             </>
            )}
         </td>
       </tr>
@@ -266,7 +325,7 @@ module AddCardRow = {
              />
            | Description =>
              <SetParagarphArrayField
-               lable="Set the species of the wildcard"
+               lable="Edit description for the wildcard"
                currentValue={
                  description->Option.mapWithDefault(
                    [||],
@@ -278,8 +337,16 @@ module AddCardRow = {
                }
                close={_ => setEditing(_ => None)}
              />
+           | Organization =>
+             <SelectOrganisation
+               lable="Select the orginization for this wildcard"
+               currentValue={organisationId->Option.getWithDefault("")}
+               setValue={(newValue: string) =>
+                 reducer(SetOrganisation(index, newValue))
+               }
+               close={_ => setEditing(_ => None)}
+             />
            | Image
-           | Organization
            | RealWcPhotos => React.null
            }
          }}
@@ -343,7 +410,17 @@ let make = () => {
             )
           ->ignore;
           {...state, data: state.data};
-
+        | SetOrganisation(index, organisationId) =>
+          state.data
+          ->Array.set(
+              index,
+              {
+                ...state.data[index]->Option.getWithDefault(emptyNewCard),
+                organisationId: Some(organisationId),
+              },
+            )
+          ->ignore;
+          {...state, data: state.data};
         | AddRow => {
             ...state,
             data: state.data->Array.concat([|emptyNewCard|]),
@@ -406,13 +483,32 @@ let make = () => {
            <button onClick={_ => reducer(AddRow)}>
              "+ Add row"->React.string
            </button>
+           <br />
+           <br />
+           <br />
+           <br />
+           {switch (state.data) {
+            | [||] => React.null
+            | wildcardsToInsert =>
+              <button
+                onClick={_ => {
+                  mutate(
+                    ~refetchQueries=[|
+                      Queries.AllWildcardsData.refetchQueryDescription(),
+                    |],
+                    AddWildcards.makeVariables(~wildcardsToInsert, ()),
+                  )
+                  ->ignore
+                }}>
+                "Save Wildcards"->React.string
+              </button>
+            }}
          </>
        | {loading: true} => "Loading..."->React.string
        | {data: Some(_result), error: None} =>
          <>
-           <p> {React.string("New wildcard animation added!")} </p>
+           <p> {React.string("New wildcards have been added!")} </p>
            <br />
-           <p> "Something"->React.string </p>
          </>
        | {error} =>
          <>

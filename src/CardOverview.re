@@ -16,36 +16,6 @@ module StringArray = {
   let serialize = array => array->Obj.magic->Js.Json.string;
 };
 
-module AllWildcardsData = [%graphql
-  {|
-    query AllCards {
-      wildcardData {
-        commonName
-        artistOfWildcard {
-          name
-          id
-          eth_address
-          website
-        }
-        nftId: id
-        description @ppxCustom(module: "GqlConverters.StringArray")
-        image
-        key
-        name
-        species
-        real_wc_photos {
-          photographer
-          image
-        }
-        organization {
-          id
-          name
-        }
-      }
-    }
-  |}
-];
-
 // Add Real Wildcard Image:
 module AddRealWildcardImage = [%graphql
   {|
@@ -167,7 +137,7 @@ module AddRealImages = {
                  onClick={_ => {
                    mutate(
                      ~refetchQueries=[|
-                       AllWildcardsData.refetchQueryDescription(),
+                       Queries.AllWildcardsData.refetchQueryDescription(),
                      |],
                      AddRealWildcardImage.makeVariables(
                        ~inp=[|
@@ -309,7 +279,7 @@ module AddAnimation = {
                  onClick={_ => {
                    mutate(
                      ~refetchQueries=[|
-                       AllWildcardsData.refetchQueryDescription(),
+                       Queries.AllWildcardsData.refetchQueryDescription(),
                      |],
                      AddWildcardAnimation.makeVariables(
                        ~image=imageLink,
@@ -382,7 +352,7 @@ module RealImages = {
       (
         ~imageArray:
            array(
-             AllWildcardsData.AllWildcardsData_inner.t_wildcardData_real_wc_photos,
+             Queries.AllWildcardsData.AllWildcardsData_inner.t_wildcardData_real_wc_photos,
            ),
         ~imageKey,
       ) => {
@@ -498,7 +468,7 @@ module Onboarding = {
 };
 [@react.component]
 let make = () => {
-  let allOrgsQuery = AllWildcardsData.use();
+  let allOrgsQuery = Queries.AllWildcardsData.use();
   let (showFilters, setShowFilters) = React.useState(_ => false);
   let (showActions, setShowActions) = React.useState(_ => false);
 

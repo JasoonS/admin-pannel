@@ -2,9 +2,6 @@
 [@ocaml.warning "-44"]
 open Css;
 
-[@ocaml.warning "-44"]
-open Css;
-
 global(
   "a",
   [color(hex("303030")), cursor(`pointer), textDecoration(none)],
